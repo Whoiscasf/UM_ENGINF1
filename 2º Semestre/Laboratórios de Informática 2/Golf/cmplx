@@ -1,0 +1,35 @@
+#!/usr/bin/bash
+
+all=0
+
+while getopts "u:p:a" opt; do
+  case $opt in
+    u) user="$OPTARG" ;;   # The colon after 'u' means it requires a value
+    p) port="$OPTARG" ;;   # The value is stored in $OPTARG
+    a) all=1 ;;     # No colon means it is just a boolean flag
+    \?) echo "Invalid option -$OPTARG" >&2; exit 1 ;;
+  esac
+done
+
+ctags -x --kinds-c=v *.[hc]
+echo
+grep -nHE "goto|setjmp|sigsetjmp|longjmp|siglongjmp|break|continue" *.[hc]
+echo
+
+pmccabe *.[hc] | sort -nr -k1 -k2 | awk -v all="$all" '
+	BEGIN{
+		maxCC = 10;
+		maxInst = 15;
+		printf "CMPL CC\tInst\tLocation\n";
+	}
+	{
+		comp = "  ";
+		flag = 0;
+		if($1 > maxCC || $3 > maxInst) {
+			comp = "**";
+			flag = 1
+		}
+		if(all || flag) {
+			printf "%s   %2d\t%4d\t%s %s\n", comp, $1, $3, $6, $7;
+		}
+	}'
